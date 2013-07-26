@@ -1,0 +1,410 @@
+NAME
+     rh - recursive file locater (rawhide) >> VERSION 2 <<
+
+SYNOPSIS
+     rh [ -vhlr ] [ -f filename ]
+          [ -e expression ] [ -x command ] file...
+
+DESCRIPTION
+     Rh recursively searches the file system starting at each
+     given file for files that make a C expression true.  If no
+     files are listed, the current working directory is used.
+
+     Expressions for rh can come from the command line (with the
+     -e option), a file (with the -f option), or from the stan-
+     dard input (the default).  The basic form of an rh expres-
+     sion is a C expression which may optionally define and or
+     call user defined functions. These C expressions may contain
+     constants, variables, and all the usual C operators.
+
+     Constants are either numeric or symbolic.  Symbolic con-
+     stants are based on the constants defined in the file
+     /usr/include/sys/stat.h; only the useful constants are
+     implemented.  The ``S_'' prefix from the symbol name is
+     omitted.  (eg. S_IFMT would used as IFMT).
+
+     Variables are symbols that specify a field in the stat
+     structure (e.g., st_size, st_mode) or some other attribute
+     of the file.  For each file examined by rh, these internal
+     variables are updated to match the current file.  For con-
+     venience, the ``st_'' prefix is dropped from variable names.
+
+     Functions are a means of associating a C expression with a
+     function name.  This allows complex expressions to be easily
+     composed from simpler ones.  The value of a function call is
+     the value of the expression represented by the function. For
+     example:
+
+             foo(x)
+             {
+             return( x-1 );
+             }
+
+     If the above function were given to Rh, it would define a
+     function that could be used later. If foo were called with
+     667, then the value of the call to foo would be equal to
+     666.
+
+OPTIONS
+     Rh options can appear in any order; multiple options can be
+     given within the same argument.
+
+     -r   Prevents rh from recursively searching for files.
+
+     -l   Normally rh prints each matching filename on a line by
+          itself.  The -l option causes the matching files' per-
+          mission modes and sizes to be displayed as well, in a
+          format similar to that of the ls(1) command.
+
+     -h   Causes rh to display a help message.  The message
+          explains the command line usage, a list of available
+          constants and variables and a list of valid operators.
+          Rh then continues as though the -h option were not
+          present.
+
+     -f filename
+          Uses filename as the name of a file containing a rh
+          expression. Functions may also be defined in this file.
+
+     -e expression
+          Uses expression as the expression that will be used for
+          the file search.  Since many of the operators are also
+          shell meta-characters and since rh expressions may con-
+          tain spaces, it is strongly recommended that the
+          expression be enclosed in single quotes, ''. If both
+          the -e and -f options occur together then the -f option
+          is processed FIRST, followed by the -e option. This
+          means that an expression specified with the -e option
+          may use functions defined from the -f file.
+
+     -v   Verbose. Causes the -l option to output more informa-
+          tion and the -x option to print out the command exe-
+          cuted and the return value.
+
+     -x command
+          Execute command using system(3) for each matching file.
+          The string command may contain a %s which will be sub-
+          stituted with the full path name. A %S (uppercase 'S')
+          will be substituted with the base name. For example,
+          given the file /etc/passwd the values for %s and %S
+          would be: /etc/passwd and passwd, respectively.
+
+	MS-DOS and OS/2 only:
+	  %f equivalent to %s
+	  %p path component
+	  %n base name without extension
+	  %e extension
+
+USAGE
+     Rh grammer
+     This is the grammer that rh will accept.
+
+     <program> ::=
+                     <function list> <expression> EOF
+                     | <function list> <expression> ;
+
+     <function list> ::=
+                     <function list> <function>
+                     | <function>
+                     | /* empty */
+
+     <function> ::=
+                     <function heading> { RETURN <expression> ; }
+
+     <function heading> ::=
+                     IDENTIFIER
+                     | IDENTIFIER ( )
+                     | IDENTIFIER ( <idlist> )
+
+     <idlist> ::=
+                     <idlist> , IDENTIFIER
+                     | IDENTIFIER
+
+     <expression> ::=
+                     <expression> ? <expression> : <expression>
+                     | <expression> || <expression>
+                     | <expression> && <expression>
+                     | <expression> | <expression>
+                     | <expression> ^ <expression>
+                     | <expression> & <expression>
+                     | <expression> == <expression>
+                     | <expression> != <expression>
+                     | <expression> < <expression>
+                     | <expression> > <expression>
+                     | <expression> <= <expression>
+                     | <expression> >= <expression>
+                     | <expression> >> <expression>
+                     | <expression> << <expression>
+                     | <expression> + <expression>
+                     | <expression> - <expression>
+                     | <expression> * <expression>
+                     | <expression> / <expression>
+                     | <expression> % <expression>
+                     | ~ <expression>
+                     | ! <expression>
+                     | - <expression>
+                     | <factor>
+
+     <factor> ::=
+                     ( <expression> )
+                     |    NUMBER
+                     |    <function call>
+                     |    IDENTIFIER
+                     |    [ <date spec> ]
+                     |    STRING
+
+     <function call> ::=
+                     IDENTIFIER
+                     | IDENTIFIER ( <exprlist> )
+                     | IDENTIFIER ( )
+
+     <exprlist> ::=
+                     <exprlist> , <expression>
+                     | <expression>
+
+     <datespec> ::=
+                     NUMBER / NUMBER / NUMBER
+
+     Search order:
+     Rh initally looks for a $HOME/.rhrc and if it exists it will
+     be read in. Next, any file specified by the -f option is
+     read followed by any expression specified with the -e
+     option. If after all that, an expression, defined outside of
+     a function, has not been encountered then stdin will be read
+     for such an expression.  An error will result if no expres-
+     sion has been encountered.
+
+     A $HOME/.rhrc will usually contain function definitions that
+     will be accessable for the user when they enter in a search
+     expression.
+
+     The valid constants are:
+
+     NOW  This constant is set to the current time at the start
+          of rh. It is used to make comparisons with atime, ctime
+          and mtime.
+
+     days This is equal to the number of seconds in a day.
+
+     hours
+          Number of seconds in an hour.
+
+     weeks
+          Number of seconds in a week.
+
+     IFBLK IFDIR IFLNK IFMT IFREG IFSOCK ISGID ISUID ISVTX
+          see stat(2) for an explanation.
+        MS-DOS and OS/2:
+          IFDIR IFMT IFREG IFCHR ISYS IHID IMOD IREAD IWRITE IEXEC
+
+     The valid variables are:
+
+     depth
+          This variable is set to the relative depth in the
+          directory search that the current file is at.
+
+     strlen
+          This is set to the length of the filename. For example
+          strlen would be equal to 4 given the file: "/tmp/core"
+          because "core" is 4 characters long.
+
+     prune
+          This varible always returns 0, but as a side-effect
+          causes the search path to be "cut-short" when
+          evaluated. This can be used to prune the directory
+          search.  prune is usually used with the ?: operator to
+          conditionally evaluate the prune variable.
+
+     atime,ctime,dev,gid,ino,mode,mtime,nlink,rdev,size,uid
+          see stat(2) for an explanation.
+
+     The valid C operators are:
+
+     ! ~ - * / % + < <= > >= == != & ^ | << >> && || ?:
+
+     Operator precedence, associativity and semantics are the
+     same as in C.
+
+     Special operators:
+
+     $username
+          This operator evaluates to the integer user id of user-
+          name. As a special case the symbol $$ evaluates to the
+          uid of the user currently running rh.
+
+     "*.c"
+          This operator evaluates to true if the current filename
+          matches the quoted expression, which is a shell glob-
+          bing pattern.  The recognized metacharacters are:
+
+          ``*''
+            to match any number of characters, including zero
+            (except that, as in the shell, it does not match a
+            leading ``.'');
+
+          ``?''
+            to match any single character (except for a leading
+            ``.'');
+
+          ``[SET]''
+            to match any character in the given set (ranges can
+            be included);
+
+          ``[^SET]''
+            to match any character not in the given set;
+
+          ``\\''
+            to escape the special meaning of any of the above
+            metacharacters.
+
+     When doing comparisons, only the base name is examined, not
+     leading paths.
+
+     [yyyy/mm/dd]
+          The date enclosed in the brackets, ``[]'', will evalu-
+          ate to a number of seconds past January 1, 1970, which
+          is suitable for comparing with atime, mtime or ctime.
+          The year cannot be abbreviated to its last two digits.
+
+     The special operators have higher precedence than the C
+     operators.
+
+     Lexical conventions:
+
+     Numbers may be entered in octal by preceding them with a
+     leading zero.  Otherwise numbers are taken to be in decimal.
+
+     Text enclosed in /* and */ will be ignored. This can be used
+     for commenting rh expression files.
+
+     The start expression may be terminated by either a ``;'' or
+     the end of the file or argument.
+
+EXAMPLES
+     The following are examples of rh expressions.
+
+             (mode & 022) && (uid == $joe );
+
+     Matches all files that have uid equal to username ``joe''
+     and are writable by other people.
+
+             !uid && (mode & ISUID ) &&
+             (mode & 02);
+
+     Matches all files that are owned by root (uid==0) and that
+     have set-uid on execution bit set, and are writable.
+
+             (size > 10*1024) && (mode & 0111) &&
+             (atime <= NOW-24*3600);
+
+     Finds all executable files larger than 10K that have not
+     been executed in the last 24 hours.
+
+             size < ( ("*.c") ? 4096 : 32*1024 );
+
+     Finds C source files smaller than 4K and other files smaller
+     than 32K.  No other files will match.
+
+             !(size % 1024);
+
+     Matches files that are a multiple of 1K.
+
+             mtime >= [1982/3/1] && mtime <= [1982/3/31];
+
+     Finds files that were modified during March, 1982.
+
+             strlen >= 4 && strlen <= 10;
+
+     This expression will print files whose filenames are between
+     4 and 10 characters in length.
+
+             depth > 3;
+
+     Matches files that are at a RELATIVE depth of 3 or more.
+
+             ( "tmp" || "bin" ) ? prune : "*.c";
+
+     This expression does a search for all "*.c" files, however
+     it will not look into any directories called "bin" or "tmp".
+     This is because when such a filename is encountered the
+     prune variable is evaluated, causing further searching with
+     the current path to stop. The general form of this would be:
+
+             ("baddir1" || "baddir2" || ... || "baddirn") ?
+                     prune : <search expr>;
+
+ADVANCED EXAMPLES
+     The following examples show the use of function definitions
+     and other advanced features of Rh.
+      Consider:
+
+             dir()
+             {
+             return ( (mode & IFMT) == IFDIR );
+             }
+
+     This declares a function that returns true if the current
+     file is a directory and false otherwise. The function
+
+     dir now may be used in other expressions.
+
+             dir() && !mine();
+
+     This matches files that are directories and are not owned by
+     the user. This assumes the user has written a mine() func-
+     tion. Since dir and mine take no arguments they may be
+     called like:
+
+             dir && !mine;
+
+     Also when declaring a function that takes no arguments the
+     parenthesis may be omitted. For example:
+
+             mine
+             {
+             return uid == $joe;
+             }
+
+     This declares a function mine, that evaluates true when a
+     file is owned by user name 'joe'. An alternate way to write
+     mine would be:
+
+             mine(who)
+             {
+             return uid == who;
+             }
+
+     This would allow mine to be called with an argument, for
+     example:
+
+             mine( $sue ) || mine( $joe );
+
+     This expression is true of any file owned by user name 'sue'
+     or 'joe'.  Since the parenthesis are optional for functions
+     that take no arguments, it would be possible to define func-
+     tions that can be used exactly like constants, or handy mac-
+     ros. Suppose the above definition of dir was placed in a
+     users $HOME/.rhrc Then the command:
+
+             rh -e dir
+
+     would execute the expression 'dir' which will print out all
+     directories.  Rh functions can be recursive.
+
+FILES
+     $HOME/.rhrc
+
+SEE ALSO
+     chmod(1), find(1), ls(1), stat(2)
+
+     The C programming language.
+
+AUTHOR
+     Ken Stauffer (University of Calgary)
+
+     stauffer@sixk
+
+BUGS
+     The date operator should also allow for time to be entered.
+     The date operator can be off by a day, if the time on the
+     file is close to midnight.
